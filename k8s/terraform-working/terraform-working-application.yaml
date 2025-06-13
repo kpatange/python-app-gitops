@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: terraform-working-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kpatange/python-app-gitops.git
+    targetRevision: HEAD
+    path: k8s/terraform-working
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: crossplane-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ApplyOutOfSyncOnly=true
+  info:
+  - name: 'Description'
+    value: 'Working Terraform infrastructure managed by ArgoCD'
+  - name: 'Components'
+    value: 'Application config, Database setup, Monitoring'

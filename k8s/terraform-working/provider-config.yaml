@@ -1,0 +1,23 @@
+apiVersion: terraform.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: terraform-working-config
+spec:
+  # Using local providers that don't require external credentials
+  configuration: |
+    terraform {
+      required_providers {
+        random = {
+          source = "hashicorp/random"
+          version = "~> 3.1"
+        }
+        local = {
+          source = "hashicorp/local"
+          version = "~> 2.1"
+        }
+        null = {
+          source = "hashicorp/null"
+          version = "~> 3.1"
+        }
+      }
+    }

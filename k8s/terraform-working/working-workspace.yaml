@@ -1,0 +1,86 @@
+apiVersion: terraform.crossplane.io/v1beta1
+kind: Workspace
+metadata:
+  name: working-terraform-workspace
+spec:
+  providerConfigRef:
+    name: terraform-working-config
+  
+  # Simple, working Terraform configuration
+  module: |
+    # Generate random strings
+    resource "random_string" "app_suffix" {
+      length = 8
+      special = false
+      upper = false
+    }
+    
+    resource "random_password" "secure_password" {
+      length = 16
+      special = true
+      upper = true
+      lower = true
+      numeric = true
+    }
+    
+    resource "random_integer" "port_number" {
+      min = 8000
+      max = 9000
+    }
+    
+    # Create local files (these will work in the container)
+    resource "local_file" "app_config" {
+      content = jsonencode({
+        app_name = "terraform-demo-${random_string.app_suffix.result}"
+        port = random_integer.port_number.result
+        environment = "development"
+        created_at = timestamp()
+      })
+      filename = "/tmp/app-config-${random_string.app_suffix.result}.json"
+    }
+    
+    resource "local_file" "deployment_info" {
+      content = <<-EOT
+        Application: terraform-demo-${random_string.app_suffix.result}
+        Port: ${random_integer.port_number.result}
+        Environment: development
+        Password Length: ${length(random_password.secure_password.result)}
+        Deployment Time: ${timestamp()}
+      EOT
+      filename = "/tmp/deployment-${random_string.app_suffix.result}.txt"
+    }
+    
+    # Null resource for demonstration (always succeeds)
+    resource "null_resource" "deployment_complete" {
+      provisioner "local-exec" {
+        command = "echo 'Deployment completed successfully for ${random_string.app_suffix.result}'"
+      }
+      
+      depends_on = [
+        local_file.app_config,
+        local_file.deployment_info
+      ]
+    }
+    
+    # Outputs
+    output "app_name" {
+      value = "terraform-demo-${random_string.app_suffix.result}"
+      description = "Generated application name"
+    }
+    
+    output "port_number" {
+      value = random_integer.port_number.result
+      description = "Assigned port number"
+    }
+    
+    output "config_file_path" {
+      value = local_file.app_config.filename
+      description = "Path to configuration file"
+    }
+    
+    output "deployment_status" {
+      value = "SUCCESS"
+      description = "Deployment status"
+    }
+  
+  writeConnectionSecretsToNamespace: upbound-system

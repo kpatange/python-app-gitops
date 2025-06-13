@@ -1,0 +1,125 @@
+apiVersion: terraform.crossplane.io/v1beta1
+kind: Workspace
+metadata:
+  name: monitoring-terraform-workspace
+spec:
+  providerConfigRef:
+    name: terraform-working-config
+  
+  module: |
+    # Monitoring configuration
+    resource "random_string" "monitoring_id" {
+      length = 10
+      special = false
+      upper = false
+    }
+    
+    # Generate monitoring configuration
+    locals {
+      monitoring_config = {
+        alerts = [
+          {
+            name = "high-cpu-usage"
+            threshold = 80
+            duration = "5m"
+          },
+          {
+            name = "high-memory-usage" 
+            threshold = 85
+            duration = "3m"
+          },
+          {
+            name = "disk-space-low"
+            threshold = 90
+            duration = "1m"
+          }
+        ]
+        
+        metrics = {
+          retention_days = 30
+          scrape_interval = "15s"
+          evaluation_interval = "1m"
+        }
+      }
+    }
+    
+    # Create monitoring configuration files
+    resource "local_file" "prometheus_config" {
+      content = yamlencode({
+        global = {
+          scrape_interval = local.monitoring_config.metrics.scrape_interval
+          evaluation_interval = local.monitoring_config.metrics.evaluation_interval
+        }
+        
+        scrape_configs = [
+          {
+            job_name = "demo-app-${random_string.monitoring_id.result}"
+            static_configs = [
+              {
+                targets = ["localhost:8080"]
+              }
+            ]
+          }
+        ]
+      })
+      filename = "/tmp/prometheus-${random_string.monitoring_id.result}.yml"
+    }
+    
+    resource "local_file" "alerting_rules" {
+      content = yamlencode({
+        groups = [
+          {
+            name = "demo-app-alerts-${random_string.monitoring_id.result}"
+            rules = [for alert in local.monitoring_config.alerts : {
+              alert = alert.name
+              expr = "up == 0"
+              for = alert.duration
+              labels = {
+                severity = "critical"
+                service = "demo-app-${random_string.monitoring_id.result}"
+              }
+              annotations = {
+                summary = "Service is down"
+                description = "Service has been down for more than ${alert.duration}"
+              }
+            }]
+          }
+        ]
+      })
+      filename = "/tmp/alerts-${random_string.monitoring_id.result}.yml"
+    }
+    
+    # Simulate successful monitoring setup
+    resource "null_resource" "monitoring_setup" {
+      provisioner "local-exec" {
+        command = "echo 'Monitoring setup completed for ${random_string.monitoring_id.result}'"
+      }
+      
+      depends_on = [
+        local_file.prometheus_config,
+        local_file.alerting_rules
+      ]
+    }
+    
+    # Outputs
+    output "monitoring_id" {
+      value = random_string.monitoring_id.result
+      description = "Monitoring instance ID"
+    }
+    
+    output "prometheus_config_path" {
+      value = local_file.prometheus_config.filename
+      description = "Prometheus configuration file path"
+    }
+    
+    output "alerts_config_path" {
+      value = local_file.alerting_rules.filename
+      description = "Alert rules configuration file path"
+    }
+    
+    output "total_alerts_configured" {
+      value = length(local.monitoring_config.alerts)
+      description = "Number of alerts configured"
+    }
+  
+  writeConnectionSecretsToNamespace: crossplane-system
