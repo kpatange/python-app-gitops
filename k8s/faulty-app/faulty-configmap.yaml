@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: faulty-config
+  namespace: default
+data:
+  app.conf: |
+    # Intentionally malformed config
+    server {
+      listen 8080
+      # Missing semicolon and closing brace
+      location / {
+        return 500 "Intentional Error"
+    # Missing closing brace
+  broken.json: |
+    {
+      "key": "value",
+      "invalid": json syntax here
+      "missing": "comma above"
+    }

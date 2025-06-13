@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: faulty-python-app
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: faulty-python-app
+  template:
+    metadata:
+      labels:
+        app: faulty-python-app
+    spec:
+      containers:
+      - name: faulty-container
+        image: nonexistent-registry.com/fake-python:latest  # Non-existent image
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # This will fail because the image doesn't exist
+          echo "This container will fail to start"
+          python /nonexistent-script.py  # Non-existent script
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: REQUIRED_ENV
+          valueFrom:
+            secretKeyRef:
+              name: nonexistent-secret  # Non-existent secret
+              key: password
+        resources:
+          requests:
+            memory: "10Gi"     # Unreasonably high memory request
+            cpu: "8000m"       # Unreasonably high CPU request
+          limits:
+            memory: "20Gi"
+            cpu: "16000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9999        # Wrong port
+          initialDelaySeconds: 5
+          periodSeconds: 3
+          failureThreshold: 1  # Fail immediately
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 9999        # Wrong port
+          initialDelaySeconds: 1
+          periodSeconds: 2
+          failureThreshold: 1
+      imagePullSecrets:
+      - name: nonexistent-pull-secret  # Non-existent image pull secret

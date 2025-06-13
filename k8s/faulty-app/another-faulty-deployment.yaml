@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-dependent-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-dependent-app
+  template:
+    metadata:
+      labels:
+        app: config-dependent-app
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: app.conf
+        - name: secret-volume
+          mountPath: /etc/secrets
+          readOnly: true
+        resources:
+          requests:
+            memory: "5Gi"      # High memory request
+            cpu: "2000m"       # High CPU request
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "exit 1"         # Always fails
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: config-volume
+        configMap:
+          name: faulty-config
+      - name: secret-volume
+        secret:
+          secretName: missing-secret  # This secret doesn't exist
