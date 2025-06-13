@@ -1,0 +1,24 @@
+apiVersion: terraform.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: terraform-config
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: upbound-system
+      name: terraform-creds
+      key: credentials
+  configuration: |
+    terraform {
+      required_providers {
+        random = {
+          source = "hashicorp/random"
+          version = "~> 3.1"
+        }
+        null = {
+          source = "hashicorp/null"
+          version = "~> 3.1"
+        }
+      }
+    }

@@ -1,0 +1,48 @@
+apiVersion: terraform.crossplane.io/v1beta1
+kind: Workspace
+metadata:
+  name: runtime-error-workspace
+spec:
+  providerConfigRef:
+    name: terraform-config
+  
+  # This will have runtime errors
+  module: |
+    terraform {
+      required_providers {
+        aws = {
+          source = "hashicorp/aws"
+          version = "~> 5.0"
+        }
+      }
+    }
+    
+    # This will fail because AWS credentials are not configured
+    resource "aws_s3_bucket" "failing_bucket" {
+      bucket = "this-bucket-name-is-way-too-long-and-contains-invalid-characters-@#$%^&*()_+-={}[]|\\:;\"'<>?,./"
+      # Invalid bucket name format
+    }
+    
+    # Resource that depends on external service that doesn't exist
+    data "aws_instance" "non_existent" {
+      instance_id = "i-doesnotexist12345"
+    }
+    
+    # Resource with invalid configuration
+    resource "aws_instance" "invalid_instance" {
+      ami = "ami-invalid"  # Invalid AMI ID
+      instance_type = "t2.invalid"  # Invalid instance type
+      availability_zone = "us-east-1z"  # Invalid AZ
+      
+      # Invalid network configuration
+      subnet_id = "subnet-invalid"
+      security_groups = ["sg-invalid"]
+      
+      # Invalid block device
+      root_block_device {
+        volume_size = -10  # Negative volume size
+        volume_type = "invalid-type"
+      }
+    }
+  
+  writeConnectionSecretsToNamespace: upbound-system

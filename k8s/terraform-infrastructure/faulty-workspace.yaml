@@ -1,0 +1,63 @@
+apiVersion: terraform.crossplane.io/v1beta1
+kind: Workspace
+metadata:
+  name: faulty-terraform-workspace
+spec:
+  providerConfigRef:
+    name: terraform-config
+  
+  # This will cause errors - invalid Terraform syntax
+  module: |
+    # Intentional Terraform syntax errors
+    resource "random_string" "example" {
+      length = "not-a-number"  # This should be a number, not a string
+      special = invalid_value   # This is not a valid boolean
+      # Missing closing brace
+    
+    resource "null_resource" "failing_resource" {
+      provisioner "local-exec" {
+        command = "exit 1"  # This will always fail
+      }
+      
+      # Invalid provisioner syntax
+      provisioner "non-existent-provisioner" {
+        # This provisioner doesn't exist
+        command = "echo 'This will fail'"
+      }
+    }
+    
+    # Resource with circular dependency
+    resource "random_string" "circular1" {
+      length = 10
+      keepers = {
+        depends_on_circular2 = random_string.circular2.result
+      }
+    }
+    
+    resource "random_string" "circular2" {
+      length = 10
+      keepers = {
+        depends_on_circular1 = random_string.circular1.result
+      }
+    }
+    
+    # Invalid resource configuration
+    resource "random_password" "invalid" {
+      length = -5  # Negative length is invalid
+      special = "not-a-boolean"  # Should be boolean
+      min_special = 100  # Cannot be greater than length
+    }
+    
+    # Reference to non-existent resource
+    output "non_existent_output" {
+      value = non_existent_resource.fake.id
+    }
+    
+    # Invalid variable definition
+    variable "invalid_var" {
+      type = invalid_type  # Not a valid Terraform type
+      default = 
+      # Missing default value
+    }
+  
+  writeConnectionSecretsToNamespace: crossplane-system

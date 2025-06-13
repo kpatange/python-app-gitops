@@ -1,0 +1,19 @@
+apiVersion: terraform.crossplane.io/v1beta1
+kind: Workspace
+metadata:
+  name: failing-infrastructure-claim
+spec:
+  providerConfigRef:
+    name: non-existent-provider-config  # This doesn't exist
+  
+  module: |
+    # This module will fail because the provider config doesn't exist
+    resource "random_string" "test" {
+      length = 16
+    }
+    
+    output "result" {
+      value = random_string.test.result
+    }
+  
+  writeConnectionSecretsToNamespace: crossplane-system
